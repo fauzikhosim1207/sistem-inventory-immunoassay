@@ -1,0 +1,348 @@
+<!-- ... existing code ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pengurusan Inventori Makmal Immunoassay DVS (Online &amp; Offline)</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 100'%3E%3Crect width='120' height='100' rx='18' fill='%23ffffff'/%3E%3Cpolygon points='34,12 52,12 62,62 50,94' fill='%231e3a8a'/%3E%3Crect x='17' y='8' width='9' height='9' fill='%231e3a8a'/%3E%3Crect x='33' y='14' width='9' height='9' fill='%23facc15'/%3E%3Crect x='29' y='29' width='9' height='9' fill='%23facc15'/%3E%3Crect x='41' y='37' width='9' height='9' fill='%23facc15'/%3E%3Cpath d='M62,36 C74,16 92,8 115,6 L112,15 C96,17 82,25 70,44 Z' fill='%23dc2626'/%3E%3Cpath d='M66,46 C78,27 94,19 109,18 L106,27 C93,29 81,36 72,53 Z' fill='%23dc2626'/%3E%3Cpath d='M70,56 C80,39 93,31 104,30 L100,40 C90,42 81,49 74,64 Z' fill='%23dc2626'/%3E%3C/svg%3E">
+    <!-- Firebase SDK (Modular Compat untuk kemudahan single-file offline & online) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+<!-- ... existing code ... -->
+        <div class="brand-title">
+            <h1>Sistem Inventori Makmal Immunoassay (DVS)</h1>
+            <p>Pengurusan Stok Online &amp; Offline • ELISA Well/Strip • Bancuhan Reagent • Audit Pegawai</p>
+        </div>
+    </div>
+    <div class="header-actions">
+        <span class="offline-badge" id="connectionStatusBadge" onclick="openCloudSetupModal()" style="cursor:pointer;" title="Klik untuk tetapan sambungan Online Cloud">
+            <span class="dot-green" id="connectionStatusDot"></span>
+            <span id="connectionStatusText">Mod Offline (Lokal)</span>
+        </span>
+        <button class="btn btn-outline btn-sm" id="cloudLoginBtn" onclick="openCloudAuthModal()" style="display:none;">
+            <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span id="cloudLoginBtnText">Log Masuk Cloud</span>
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()">
+            <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Backup JSON
+        </button>
+<!-- ... existing code ... -->
+                    <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+                        <strong style="font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                            <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                            Tukar PIN Keselamatan Admin
+                        </strong>
+                        <form onsubmit="changeAdminPin(event)" style="display:flex; gap:8px; margin-top:8px;">
+                            <input type="password" id="newAdminPinInput" placeholder="PIN baharu (min 4 aksara)" minlength="4" required>
+                            <button type="submit" class="btn btn-outline">Kemaskini PIN</button>
+                        </form>
+                    </div>
+
+                    <div style="background:#f0f9ff; padding:12px; border-radius:8px; border:1px solid #bae6fd;">
+                        <strong style="font-size:0.85rem; color:#0369a1; display:flex; align-items:center; gap:6px;">
+                            <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+                            Sambungan Laman Web Online (Cloud Sync)
+                        </strong>
+                        <p style="font-size:0.78rem; color:#334155; margin:4px 0 8px;">Aktifkan pangkalan data awan supaya rekod disegerakkan secara automatik di makmal, rumah &amp; telefon.</p>
+                        <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="openCloudSetupModal()">Konfigurasi Sambungan Online (Firebase)</button>
+                    </div>
+                </div>
+            </div>
+<!-- ... existing code ... -->
+<!-- MODAL: CLOUD SETUP (ONLINE REAL-TIME) -->
+<div class="modal-backdrop" id="cloudSetupModal" onclick="if(event.target===this) closeCloudSetupModal()">
+    <div class="modal-box" style="max-width:560px;">
+        <div class="card-header">
+            <span class="card-title" style="color:#0369a1;">
+                <svg class="ui-icon" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+                Tetapan Laman Web Online (Cloud Auto-Sync)
+            </span>
+            <button class="btn btn-outline btn-sm" onclick="closeCloudSetupModal()">?</button>
+        </div>
+        <div style="font-size:0.84rem; color:#334155; display:flex; flex-direction:column; gap:10px;">
+            <div style="background:#f0f9ff; border-left:4px solid var(--secondary); padding:10px 12px; border-radius:8px;">
+                <strong>Cara Menjadikan Sistem Ini Online (Percuma):</strong>
+                <ol style="padding-left:18px; margin-top:4px;">
+                    <li>Layari <strong>console.firebase.google.com</strong> dan cipta projek percuma (cth: <code>inventori-dvs</code>).</li>
+                    <li>Aktifkan <strong>Authentication (Email/Password)</strong> &amp; <strong>Firestore Database</strong>.</li>
+                    <li>Pergi ke <em>Project Settings &rarr; Your apps (Web)</em>, salin objek <code>firebaseConfig</code> dan tampal di bawah.</li>
+                </ol>
+            </div>
+            <form onsubmit="saveCloudConfig(event)">
+                <div class="form-group">
+                    <label>Tampal Konfigurasi Projek (JSON / Objek firebaseConfig)</label>
+                    <textarea id="firebaseConfigInput" rows="6" placeholder='{"apiKey": "AIzaSy...", "authDomain": "inventori-dvs.firebaseapp.com", "projectId": "inventori-dvs", ...}' style="font-family:monospace; font-size:0.8rem;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kod Makmal / Ruang Kerja (Workspace ID)</label>
+                    <input type="text" id="cloudWorkspaceId" value="dvs-immunoassay-main" required>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:space-between; flex-wrap:wrap; margin-top:12px;">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="disconnectCloudConfig()">Putuskan &amp; Guna Mod Offline</button>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" class="btn btn-outline" onclick="closeCloudSetupModal()">Batal</button>
+                        <button type="submit" class="btn btn-secondary">Simpan &amp; Sambung Online</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CLOUD LOGIN (STAFF AUTHENTICATION) -->
+<div class="modal-backdrop" id="cloudAuthModal" onclick="if(event.target===this) closeCloudAuthModal()">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="card-header">
+            <span class="card-title" style="color:var(--primary);">Log Masuk Pegawai Makmal (Online)</span>
+            <button class="btn btn-outline btn-sm" onclick="closeCloudAuthModal()">?</button>
+        </div>
+        <div id="cloudLoggedInInfo" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px; margin-bottom:12px; font-size:0.86rem;">
+            <p>Log masuk aktif sebagai: <strong id="cloudUserEmailDisplay"></strong></p>
+            <p style="font-size:0.78rem; color:#15803d; margin-top:4px;">Status: Data disegerakkan secara automatik ke Cloud.</p>
+            <button type="button" class="btn btn-danger btn-sm" style="margin-top:10px; width:100%;" onclick="cloudSignOut()">Log Keluar</button>
+        </div>
+        <form id="cloudAuthForm" onsubmit="submitCloudLogin(event)">
+            <div class="form-group">
+                <label>E-mel Rasmi / Pegawai</label>
+                <input type="email" id="cloudAuthEmail" placeholder="pegawai@dvs.gov.my" required>
+            </div>
+            <div class="form-group">
+                <label>Kata Laluan</label>
+                <input type="password" id="cloudAuthPassword" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Log Masuk &amp; Segerak Data</button>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    const STORAGE_KEY = 'dvs_immunoassay_inventory_v3';
+    const CLOUD_CFG_KEY = 'dvs_immunoassay_cloud_cfg_v1';
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonthStr = todayStr.slice(0, 7);
+
+    let cloudDb = null;
+    let cloudAuth = null;
+    let cloudUnsubscribe = null;
+    let isCloudApplyingRemote = false;
+    let currentCloudUser = null;
+// ... existing code ...
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        } catch (err) {
+            showToast('Amaran: Gagal menyimpan ke memori pelayar.', 'error');
+        }
+        pushStateToCloud();
+    }
+
+    // CLOUD ONLINE SYNC ENGINE (FIREBASE)
+    function initCloudEngine() {
+        const rawCfg = localStorage.getItem(CLOUD_CFG_KEY);
+        const loginBtn = document.getElementById('cloudLoginBtn');
+        const statusText = document.getElementById('connectionStatusText');
+        const statusDot = document.getElementById('connectionStatusDot');
+
+        if (!rawCfg || typeof firebase === 'undefined') {
+            if (loginBtn) loginBtn.style.display = 'none';
+            if (statusText) statusText.textContent = 'Mod Offline (Lokal)';
+            if (statusDot) statusDot.style.background = '#4ade80';
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(rawCfg);
+            if (!firebase.apps.length) {
+                firebase.initializeApp(parsed.config);
+            }
+            cloudAuth = firebase.auth();
+            cloudDb = firebase.firestore();
+            if (loginBtn) loginBtn.style.display = 'inline-flex';
+
+            cloudAuth.onAuthStateChanged(user => {
+                currentCloudUser = user;
+                const infoBox = document.getElementById('cloudLoggedInInfo');
+                const authForm = document.getElementById('cloudAuthForm');
+                const btnText = document.getElementById('cloudLoginBtnText');
+
+                if (user) {
+                    if (statusText) statusText.textContent = 'Online Cloud Aktif';
+                    if (statusDot) statusDot.style.background = '#38bdf8';
+                    if (btnText) btnText.textContent = user.email.split('@')[0];
+                    if (infoBox) {
+                        infoBox.style.display = 'block';
+                        document.getElementById('cloudUserEmailDisplay').textContent = user.email;
+                    }
+                    if (authForm) authForm.style.display = 'none';
+                    subscribeCloudWorkspace(parsed.workspaceId || 'dvs-immunoassay-main');
+                } else {
+                    if (statusText) statusText.textContent = 'Online (Sila Log Masuk)';
+                    if (statusDot) statusDot.style.background = '#fbbf24';
+                    if (btnText) btnText.textContent = 'Log Masuk Cloud';
+                    if (infoBox) infoBox.style.display = 'none';
+                    if (authForm) authForm.style.display = 'block';
+                    if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
+                }
+            });
+        } catch (err) {
+            console.error('Cloud init error:', err);
+            showToast('Ralat konfigurasi Cloud. Sila semak tetapan di tab Admin.', 'error');
+        }
+    }
+
+    function subscribeCloudWorkspace(workspaceId) {
+        if (!cloudDb) return;
+        if (cloudUnsubscribe) cloudUnsubscribe();
+
+        const docRef = cloudDb.collection('dvs_inventori_workspaces').doc(workspaceId);
+        cloudUnsubscribe = docRef.onSnapshot(snap => {
+            if (snap.exists) {
+                const remoteData = snap.data();
+                if (remoteData && remoteData.stateJson) {
+                    isCloudApplyingRemote = true;
+                    try {
+                        const imported = JSON.parse(remoteData.stateJson);
+                        appState = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), imported);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                        refreshAllViews();
+                    } finally {
+                        isCloudApplyingRemote = false;
+                    }
+                }
+            } else {
+                pushStateToCloud();
+            }
+        }, err => {
+            showToast('Amaran penyegerakan Cloud: ' + err.message, 'error');
+        });
+    }
+
+    function pushStateToCloud() {
+        if (isCloudApplyingRemote || !cloudDb || !currentCloudUser) return;
+        const rawCfg = localStorage.getItem(CLOUD_CFG_KEY);
+        if (!rawCfg) return;
+        try {
+            const parsed = JSON.parse(rawCfg);
+            const workspaceId = parsed.workspaceId || 'dvs-immunoassay-main';
+            cloudDb.collection('dvs_inventori_workspaces').doc(workspaceId).set({
+                stateJson: JSON.stringify(appState),
+                updatedAt: new Date().toISOString(),
+                updatedBy: currentCloudUser.email
+            });
+        } catch (err) {
+            console.error('Push cloud error:', err);
+        }
+    }
+
+    function openCloudSetupModal() {
+        const rawCfg = localStorage.getItem(CLOUD_CFG_KEY);
+        if (rawCfg) {
+            try {
+                const parsed = JSON.parse(rawCfg);
+                document.getElementById('firebaseConfigInput').value = JSON.stringify(parsed.config, null, 2);
+                document.getElementById('cloudWorkspaceId').value = parsed.workspaceId || 'dvs-immunoassay-main';
+            } catch (e) {}
+        }
+        document.getElementById('cloudSetupModal').style.display = 'flex';
+    }
+
+    function closeCloudSetupModal() {
+        document.getElementById('cloudSetupModal').style.display = 'none';
+    }
+
+    function saveCloudConfig(e) {
+        e.preventDefault();
+        let rawText = document.getElementById('firebaseConfigInput').value.trim();
+        const workspaceId = document.getElementById('cloudWorkspaceId').value.trim() || 'dvs-immunoassay-main';
+        try {
+            // Benarkan pengguna menampal sama ada JSON tulen atau blok JS const firebaseConfig = {...};
+            const firstBrace = rawText.indexOf('{');
+            const lastBrace = rawText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                rawText = rawText.slice(firstBrace, lastBrace + 1);
+            }
+            // Tukar kunci objek JS tanpa petikan kepada JSON sah jika perlu
+            const normalizedJson = rawText.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+            const cfgObj = JSON.parse(normalizedJson);
+            if (!cfgObj.apiKey || !cfgObj.projectId) throw new Error('Medan apiKey atau projectId tidak ditemui.');
+
+            localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify({ config: cfgObj, workspaceId }));
+            closeCloudSetupModal();
+            showToast('Konfigurasi Online disimpan! Sila log masuk akaun pegawai anda.', 'info');
+            initCloudEngine();
+            openCloudAuthModal();
+        } catch (err) {
+            showToast('Format konfigurasi tidak sah: ' + err.message, 'error');
+        }
+    }
+
+    function disconnectCloudConfig() {
+        if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
+        localStorage.removeItem(CLOUD_CFG_KEY);
+        currentCloudUser = null;
+        closeCloudSetupModal();
+        initCloudEngine();
+        showToast('Sistem ditukar semula ke Mod Offline (Lokal).', 'info');
+    }
+
+    function openCloudAuthModal() {
+        document.getElementById('cloudAuthModal').style.display = 'flex';
+    }
+
+    function closeCloudAuthModal() {
+        document.getElementById('cloudAuthModal').style.display = 'none';
+    }
+
+    function submitCloudLogin(e) {
+        e.preventDefault();
+        if (!cloudAuth) {
+            showToast('Sila tetapkan konfigurasi Cloud terlebih dahulu.', 'error');
+            return;
+        }
+        const email = document.getElementById('cloudAuthEmail').value.trim();
+        const pass = document.getElementById('cloudAuthPassword').value;
+        cloudAuth.signInWithEmailAndPassword(email, pass)
+            .then(() => {
+                closeCloudAuthModal();
+                showToast('Berjaya log masuk! Data kini disegerakkan secara automatik.');
+            })
+            .catch(err => {
+                showToast('Gagal log masuk: ' + err.message, 'error');
+            });
+    }
+
+    function cloudSignOut() {
+        if (cloudAuth) {
+            cloudAuth.signOut().then(() => {
+                closeCloudAuthModal();
+                showToast('Anda telah log keluar dari sesi Online.', 'info');
+            });
+        }
+    }
+
+    function refreshAllViews() {
+        populateDropdowns();
+        renderDashboard();
+        renderInventoryTable();
+        calculateElisaPreview();
+        renderSavedRecipesDropdown();
+        renderReagentMixHistory();
+        renderReports();
+        if (isAdminUnlocked) renderAdminLists();
+    }
+// ... existing code ...
+        const mixContainer = document.getElementById('mixComponentsContainer');
+        if (mixContainer && mixContainer.children.length === 0) {
+            addMixComponentRow();
+        }
+        initCloudEngine();
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+<!-- ... existing code ... -->
